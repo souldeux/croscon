@@ -5,26 +5,86 @@
 	<h1 class='display-4'>Cross-Multiply Two Vectors</h1>
 	<hr class='my-5'>
 	<form method='POST' id='vectorForm'>
+		<p>
+			Enter two vectors as strings of comma-separated integers.
+		</p>
+		<div class='alert alert-danger text-left' id='non_field_errors_errors' style='display:none;'>
+			<h4 align='center'>Submission Errors Detected</h3>
+			<hr>
+			<dl id="non_field_errors_errors_list"></dl>
+		</div>
+
 		<div class='form-row'>
 			<div class='form-group col'>
-				<label for='vector1'>Vector 1</label>
-				<input type='text' class='form-control' id='vector1' name='vector1' placeholder='1,2,3'>
+				<label for='vector1' class='sr-only'>Vector 1</label>
+				<input type='text' class='form-control' id='vector1' name='vector1' 
+					placeholder='Vector 1 (ex: 1,2,3)'>
+				<div class='alert alert-danger mt-2' id='vector1_errors' style='display:none;'>
+					<dl id="vector1_errors_list"></dl>
+				</div>
 			</div>
 			<div class='form-group col'>
-				<label for='vector2'>Vector 2</label>
-				<input type='text' class='form-control' id='vector2' name='vector2' placeholder='4,5,6'>
+				<label for='vector2' class='sr-only'>Vector 2</label>
+				<input type='text' class='form-control' id='vector2' name='vector2' 
+					placeholder='Vector 2 (ex: 4,5,6)'>
+				<div class='alert alert-danger mt-2' id='vector2_errors' style='display:none;'>
+					<dl id="vector2_errors_list"></dl>
+				</div>
 			</div>
 		</div>
-		<button type='submit' class='btn btn-primary mt-2'>Calculate Cross-Product</button>
+		<button type='submit' class='btn btn-primary mt-2' id='calculate-submit'>Calculate Cross-Product</button>
 	</form>
 </div>
 
+
+<h3>Most Recent Computed Results</h3>
+<div class='pagination-control' id='pagination'>
+	<form class='form-inline mb-2'>
+		<label for='page-jumper'>
+			Enter a number to jump to a page
+		</label>
+		<input id='page-jumper' class='form-control form-control-sm mx-2' 
+			name='page' type='number' min='1' max='1'>
+		<button type='submit' class='btn btn-primary btn-sm'>jump</button>
+	</form>
+</div>
+<p id='page-numbers'>Current: page <span id='currentpage'>1</span> of <span id='maxpages'>1</span></p>
+	<table class='table table-hover table-bordered' align='center'>
+		<thead>
+			<tr>
+				<th>Vector 1</th>
+				<th>Vector 2</th>
+				<th>Cross Product</th>
+				<th>Created</th>
+			</tr>
+		</thead>
+		<tbody id='computedResultsTableBody'>
+			<tr id='noComputedResultsRow'>
+				<td colspan='4' align='center' id='noComputedResultsAlert' class='table-primary'>
+					Loading Computed Results...
+				</td>
+			</tr>
+		</tbody>
+	</table>
+
 <script>
 $(document).ready(function(){
+	
+	var error_container_array = ['non_field_errors_errors', 'vector1_errors', 'vector2_errors']
+	var starting_list_url = "{% url 'api:crossproduct-list' %}"
+	if (get_url_vars()['page']){
+		starting_list_url += ("?page=" + get_url_vars()['page']);
+		$("#currentpage").text(get_url_vars()['page']);
+	} 
+	populate_computed_results(starting_list_url);
+	
 
 	$("#vectorForm").on('submit', function(event){
 		event.preventDefault();
+		reset_error_containers(error_container_array);
 		create_cross_product();
+		$("#vector1").val('');
+		$("#vector2").val('');
 	});
 
 	function create_cross_product(){
@@ -35,17 +95,90 @@ $(document).ready(function(){
 				vector1: $("#vector1").val(),
 				vector2: $("#vector2").val(),
 			},
-
-			success: function(json){
-				console.log('success');
+			dataType: 'json',
+			success: function(response){
+				prepend_result_to_table(response);
+				$("#calculate-submit").text("Calculation complete! Results are below")
+					.removeClass('btn-primary')
+					.addClass('btn-success').attr('disabled', true);
 			},
 
 			error: function(xhr, errmsg, err){
-				console.log(xhr.status + ": " + xhr.responseText);
+				$.each(JSON.parse(xhr.responseText), function(k, v){
+					$("#" + k + "_errors_list").append("<p>" + v + "</p>");
+					$("#" + k + "_errors").show();
+				});
 			}
 		});
 	};
 
+	function populate_computed_results(url){
+		$.get(url, function(data){
+			if ( data['results'].length === 0 ){
+				$("#noComputedResultsAlert").text("No Computed Results To Display")
+			}
+			else {
+				$("#noComputedResultsRow").remove();
+				$.each(data['results'], function(id, crossProduct){
+					append_result_to_table(crossProduct);
+				});
+				if ( data['count'] <= 25 ){
+					//only one page
+					$("#pagination-control").hide();
+				}
+				else {
+					$("#pagiation-control").show()
+					var max = Math.ceil(data['count']/25);
+					$("#page-jumper").attr('max', max)
+					$("#maxpages").text(max);
+				}
+			}
+		}).fail(function(){
+			$("#noComputedResultsAlert").html(
+				"<p>Error: no results for that URL. Did you specify an invalid page number?</p>\
+				<a href='" + "{% url 'home' %}" + "''>\
+				Back To Safety</a>").removeClass("table-info").addClass("table-danger");
+			$("#page-numbers").hide();
+		});
+	};
+
+	function append_result_to_table(crossProduct){
+		$("#computedResultsTableBody").append(
+			"<tr><td>" + crossProduct.vector1 + "</td>" +
+			"<td>" + crossProduct.vector2 + "</td>" + 
+			"<td>" + crossProduct.result + "</td>" + 
+			"<td>" + crossProduct.created + "</td></tr>"
+		);
+	}
+
+	function prepend_result_to_table(crossProduct){
+		$("#noComputedResultsRow").remove();
+		$("#computedResultsTableBody").prepend(
+			"<tr class='table-primary'><td>" + crossProduct.vector1 + "</td>" +
+			"<td>" + crossProduct.vector2 + "</td>" + 
+			"<td>" + crossProduct.result + "</td>" + 
+			"<td>" + crossProduct.created + "</td></tr>"
+		);
+	}
+
+	function reset_error_containers(error_container_array){
+		$.each(error_container_array, function(k, v){
+			$("#" + v + "_list").text('');
+			$("#" + v).hide();
+		});
+	}
+
+	function get_url_vars(){
+		var vars = [], hash;
+		var args = window.location.href.slice(window.location.href.indexOf("?")+1).split("&");
+		for (var i = 0; i < args.length; i ++){
+			arg = args[i].split('=');
+			vars.push(arg[0]);
+			vars[arg[0]] = arg[1];
+		}
+		return vars;
+	}
+
 });
 </script>
-{% endblock content %}
+{% endblock content %}	
