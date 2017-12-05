@@ -15,10 +15,11 @@ class CrossProduct(models.Model):
 	created = models.DateTimeField(auto_now_add = True)
 
 	def get_absolute_url(self):
-		return reverse('api:crossproduct-detail')
+		return reverse('api:crossproduct-detail', kwargs={'pk':self.pk})
 
 	def __str__(self):
-		return '{} {}'.format(self.id, self.created)
+		return '{}'.format(self.id, self.created)
 
 	class Meta:
 		ordering = ('-created',)
+		verbose_name_plural = 'CrossProducts'

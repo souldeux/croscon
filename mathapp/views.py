@@ -12,6 +12,6 @@ class CrossProductViewSet(viewsets.ModelViewSet):
 	http_method_names = ['get', 'post', 'head']
 	
 
-class Health(viewsets.GenericViewSet):
+class HealthViewSet(viewsets.GenericViewSet):
 	def list(self, request):
 		return Response({'message':'ok'}, status=status.HTTP_200_OK)

@@ -49,6 +49,8 @@ INSTALLED_APPS = [
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = [
     "--with-coverage",
+    "--cover-html",
+    "--cover-html-dir=./coverage_results",
     "--cover-package=mathapp"
 ]
 
