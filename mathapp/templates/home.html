@@ -5,7 +5,7 @@
 	<h1 class='display-4'>Cross-Multiply Two Vectors</h1>
 	<hr class='my-5'>
 	<form method='POST' id='vectorForm'>
-		<p>
+		<p id='form_help'>
 			Enter two vectors as strings of comma-separated integers.
 		</p>
 		<div class='alert alert-danger text-left' id='non_field_errors_errors' style='display:none;'>
@@ -45,7 +45,7 @@
 		</label>
 		<input id='page-jumper' class='form-control form-control-sm mx-2' 
 			name='page' type='number' min='1' max='1'>
-		<button type='submit' class='btn btn-primary btn-sm'>jump</button>
+		<button type='submit' class='btn btn-primary btn-sm'>go</button>
 	</form>
 </div>
 <p id='page-numbers'>Current: page <span id='currentpage'>1</span> of <span id='maxpages'>1</span></p>
@@ -68,10 +68,16 @@
 	</table>
 
 <script>
+//Normally this would all be broken out into its own file(s), which would then be minified/obfuscated
+//The original source code has been kept here for readibility
+
 $(document).ready(function(){
 	
+	//initialize this array for use later when targeting error messages to reset; helps DRYness
 	var error_container_array = ['non_field_errors_errors', 'vector1_errors', 'vector2_errors']
+	
 	var starting_list_url = "{% url 'api:crossproduct-list' %}"
+	//If a page number argument is present, be sure to grab the right page of results
 	if (get_url_vars()['page']){
 		starting_list_url += ("?page=" + get_url_vars()['page']);
 		$("#currentpage").text(get_url_vars()['page']);
@@ -83,28 +89,37 @@ $(document).ready(function(){
 		event.preventDefault();
 		reset_error_containers(error_container_array);
 		create_cross_product();
+		//clear these values after submission to avoid confusion & duplication
 		$("#vector1").val('');
 		$("#vector2").val('');
 	});
 
 	function create_cross_product(){
+		//Takes two vectors supplied in our form, sends them to the server,
+		//gets the result/response, and prepends the formatted result to our table
 		$.ajax({
 			url: "{% url 'api:crossproduct-list' %}?format=json",
 			type: "POST",
 			data:{
 				vector1: $("#vector1").val(),
 				vector2: $("#vector2").val(),
+				csrf_token: "{%csrf_token%}"
 			},
 			dataType: 'json',
 			success: function(response){
+				//prepend so that it always appears at the top of the visible table, even if a user is adding
+				//from several pages of results deep
 				prepend_result_to_table(response);
-				$("#calculate-submit").text("Calculation complete! Results are below")
-					.removeClass('btn-primary')
-					.addClass('btn-success').attr('disabled', true);
+				//replace current help text
+				$("#form_help").text("Calculation complete! Your results are highlighted below.\
+					Enter new comma-separated vectors to calculate a new cross-product.")
 			},
 
 			error: function(xhr, errmsg, err){
 				$.each(JSON.parse(xhr.responseText), function(k, v){
+					//keys come in like vector1, vector2 etc.
+					//build selectors from them to get values where you want 
+					///them & show appropriate containers
 					$("#" + k + "_errors_list").append("<p>" + v + "</p>");
 					$("#" + k + "_errors").show();
 				});
@@ -113,27 +128,33 @@ $(document).ready(function(){
 	};
 
 	function populate_computed_results(url){
+		//Populates our data display table with the CrossProduct objects appropriate
+		//for the page requested (if any)
 		$.get(url, function(data){
 			if ( data['results'].length === 0 ){
-				$("#noComputedResultsAlert").text("No Computed Results To Display")
+				//No results in DB, show a sane message
+				$("#noComputedResultsAlert").text("No Computed Results To Display. Yours could be the first!")
 			}
 			else {
 				$("#noComputedResultsRow").remove();
 				$.each(data['results'], function(id, crossProduct){
+					//Append here since we are relying on db ordering
 					append_result_to_table(crossProduct);
 				});
 				if ( data['count'] <= 25 ){
-					//only one page
+					//only one page; no need for pagination controls
 					$("#pagination-control").hide();
 				}
 				else {
 					$("#pagiation-control").show()
+					//figure out our last page number. 25 results per page by default
 					var max = Math.ceil(data['count']/25);
 					$("#page-jumper").attr('max', max)
 					$("#maxpages").text(max);
 				}
 			}
 		}).fail(function(){
+			//a failure here is a 404, which means we probably typed in an out-of-range page number
 			$("#noComputedResultsAlert").html(
 				"<p>Error: no results for that URL. Did you specify an invalid page number?</p>\
 				<a href='" + "{% url 'home' %}" + "''>\
@@ -152,6 +173,9 @@ $(document).ready(function(){
 	}
 
 	function prepend_result_to_table(crossProduct){
+		//used to prepend newly-created crossproducts, so that users can see their results
+		//at the top of the table even if they're doing calculations from several pages
+		//deep in the results. 
 		$("#noComputedResultsRow").remove();
 		$("#computedResultsTableBody").prepend(
 			"<tr class='table-primary'><td>" + crossProduct.vector1 + "</td>" +
@@ -162,6 +186,7 @@ $(document).ready(function(){
 	}
 
 	function reset_error_containers(error_container_array){
+		//clear text of error container children and hide them
 		$.each(error_container_array, function(k, v){
 			$("#" + v + "_list").text('');
 			$("#" + v).hide();
@@ -169,11 +194,17 @@ $(document).ready(function(){
 	}
 
 	function get_url_vars(){
+		//get querystring arguments from a url
+		//usage: get_url_vars()['page'] to get value of ?page= 
 		var vars = [], hash;
+		//grab URL from window, slice at querysting, split on any additional args
 		var args = window.location.href.slice(window.location.href.indexOf("?")+1).split("&");
 		for (var i = 0; i < args.length; i ++){
+			//split key from value
 			arg = args[i].split('=');
+			//push key to vars
 			vars.push(arg[0]);
+			//set vars[key] = value
 			vars[arg[0]] = arg[1];
 		}
 		return vars;

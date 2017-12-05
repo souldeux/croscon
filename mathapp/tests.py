@@ -37,7 +37,7 @@ class TestCrossProductListCreateAPI(unittest.TestCase):
 	def test_crossproduct_list(self):
 		#Does the list API list all objects?
 		response = self.client.get(self.url)
-		self.assertEqual( len(json.loads(response.content)),  CrossProduct.objects.count() )
+		self.assertEqual( len(response.json()['results']),  CrossProduct.objects.count() )
 
 	def test_bad_vectors(self):
 		#Does the API return 400 responses for invalid vectors?
@@ -57,3 +57,5 @@ class TestCrossProductListCreateAPI(unittest.TestCase):
 				'vector2': bad_vector3
 			})
 		self.assertEqual( 400, response2.status_code )
+
+	
