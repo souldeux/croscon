@@ -24,7 +24,7 @@ class CrossProductSerializer(serializers.HyperlinkedModelSerializer):
 
 		try:
 			data['result'] = ','.join([str(x) for x in numpy.cross(v1_list, v2_list)])
-		except Exception as e:
+		except Exception as e: #pragma: no cover
 			#This could represent a data leak in an enterprise application, but 
 			#for since this is a code challenge it makes sense to expose
 			#the text of any error we hit here for transparency's sake

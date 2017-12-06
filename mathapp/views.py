@@ -13,5 +13,5 @@ class CrossProductViewSet(viewsets.ModelViewSet):
 	
 
 class HealthViewSet(viewsets.GenericViewSet):
-	def list(self, request):
+	def list(self, request, format=None):
 		return Response({'message':'ok'}, status=status.HTTP_200_OK)
